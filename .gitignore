@@ -1,10 +1,10 @@
-# compiled python code
+# Compiled python code
 *.pyc
 
-# vim temporary backup
+# Vim temporary backup
 .*.sw*
 
-# binary executables
+# Binary executables
 cif2pdb
 TMalign
 TMalignc
@@ -21,7 +21,36 @@ MMalign
 TMscore
 pdbAtomName
 *.exe
+
+# Compressed files
 *.zip
 
-.idea
-cmake-build-debug
+# IDE-specific files
+.idea/
+cmake-build-debug/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+
+# Build directories
+build/
+_build/
+out/
+
+# CMake user-specific files
+CMakeUserPresets.json
+CMakeLists.txt.user
+CMakeSettings.json
+
+# Generated Makefiles
+Makefile
+*.make
+
+# OS-specific files
+.DS_Store
+Thumbs.db
