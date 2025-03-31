@@ -82,6 +82,8 @@
    2024/06/02: implement -mm 4 -se
    2024/07/05: implement -do
    2024/07/30: implement -se -byresi 6 7
+   2024/10/30: set default for -ter and -split
+   2024/11/08: -chimerax
 ===============================================================================
 
 =========================
@@ -96,7 +98,7 @@ or
     g++ -static -O3 -ffast-math -lm -o USalign USalign.cpp
 
 The '-static' flag should be removed on Mac OS, which does not support
-building static executables.
+building static executables. Compilation takes just a few seconds.
 
 USalign compiled on Linux, Mac OS and Linux Subsystem for Windows (WSL2) on
 Windows 10 onwards can read both uncompressed files and gz compressed
@@ -106,6 +108,24 @@ without WSL2 cannot parse gz compressed files.
 
 US-align is known to be compilable by g++ version 4.8.5 or later, clang++
 version 12.0.5 or later and mingw-w64 version 9.3 or later.
+
+It is also possible to install using package managers.
+
+If you are using Homebrew, run the following command.
+The executable is supposed to work on MacOS (x86_64, arm64) and Linux (x86_64).
+
+```shell
+brew install brewsci/bio/usalign
+```
+
+If you are using conda, run the following command.
+The executable is supposed to work on Linux (x86_64, aarch64) and MacOS (x86_64, arm64).
+
+```shell
+conda install -c bioconda usalign
+```
+
+The Homebrew and conda packages may not have the most recent version of US-align.
 
 =====================
  How to use US-align

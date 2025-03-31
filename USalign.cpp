@@ -11,7 +11,7 @@ void print_version()
     cout << 
 "\n"
 " ********************************************************************\n"
-" * US-align (Version 20240730)                                      *\n"
+" * US-align (Version 20241108)                                      *\n"
 " * Universal Structure Alignment of Proteins and Nucleic Acids      *\n"
 " * Reference: C Zhang, M Shine, AM Pyle, Y Zhang. (2022) Nat Methods*\n"
 " *            C Zhang, AM Pyle (2022) iScience.                     *\n"
@@ -57,8 +57,9 @@ void print_extra_help()
 "\n"
 "  -split  Whether to split PDB file into multiple chains\n"
 "           0: treat the whole structure as one single chain\n"
+"              (default for -TMscore 2)\n"
 "           1: treat each MODEL as a separate chain\n"
-"           2: (default) treat each chain as a separate chain\n"
+"           2: (default for other cases) treat each chain as a separate chain\n"
 "\n"
 " -outfmt  Output format\n"
 "           0: (default) full output\n"
@@ -149,20 +150,21 @@ void print_help(bool h_opt=false)
 "          2: alignment of individual chains to an oligomeric structure\n"
 "             $ USalign -dir1 monomers/ list oligomer.pdb -ter 0 -mm 2\n"
 "          3: alignment of circularly permuted structure\n"
-"          4: alignment of multiple monomeric chains into a consensus alignment\n"
+"          4: MSTA, i.e., alignment of multiple monomeric chains into a\n"
+"             consensus alignment\n"
 "             $ USalign -dir chains/ list -suffix .pdb -mm 4\n"
 "          5: fully non-sequential (fNS) alignment\n"
 "          6: semi-non-sequential (sNS) alignment\n"
 "          To use -mm 1 or -mm 2, '-ter' option must be 0 or 1.\n"
 "\n"
 "    -ter  Number of chains to align.\n"
-"          3: only align the first chain, or the first segment of the\n"
-"             first chain as marked by the 'TER' string in PDB file\n"
-"          2: (default) only align the first chain\n"
-"          1: align all chains of the first model (recommended for aligning\n"
-"             asymmetric units)\n"
 "          0: align all chains from all models (recommended for aligning\n"
 "             biological assemblies, i.e. biounits)\n"
+"          1: align all chains of the first model (recommended for aligning\n"
+"             asymmetric units, default for -mm 1,2 and -TMscore 2,6,7)\n"
+"          2: (default for other cases) only align the first chain\n"
+"          3: only align the first chain, or the first segment of the\n"
+"             first chain as marked by the 'TER' string in PDB file\n"
 "\n"
 " -TMscore Whether to perform TM-score superposition without structure-based\n"
 "          alignment. The same as -byresi.\n"
@@ -216,6 +218,14 @@ void print_help(bool h_opt=false)
 "          $ rasmol -script sup_atm           # full-atom aligned region\n"
 "          $ rasmol -script sup_all_atm       # full-atom whole chain\n"
 "          $ rasmol -script sup_all_atm_lig   # full-atom with all molecules\n"
+"\n"
+"-chimerax Output superposed structure1 to sup.* for ChimeraX viewing.\n"
+"          $ USalign structure1.pdb structure2.pdb -chimerax sup\n"
+"          $ chimerax --script sup.cxc             # C-alpha trace aligned region\n"
+"          $ chimerax --script sup_all.cxc         # C-alpha trace whole chain\n"
+"          $ chimerax --script sup_atm.cxc         # full-atom aligned region\n"
+"          $ chimerax --script sup_all_atm.cxc     # full-atom whole chain\n"
+"          $ chimerax --script sup_all_atm_lig.cxc # full-atom with all molecules\n"
 "\n"
 "     -do  Output distance of aligned residue pairs\n"
 "\n"
@@ -2380,8 +2390,10 @@ int mTMalign(string &xname, string &yname, const string &fname_super,
                 xname_vec,yname_vec, ut_mat, assign_list);
         }
 
-        if (o_opt) output_dock(chain_list, ter_opt, split_opt, 
-                infmt_opt, atom_opt, false, ut_mat, fname_super);
+        //if (o_opt) output_dock(chain_list, ter_opt, split_opt, 
+                //infmt_opt, atom_opt, false, ut_mat, fname_super);
+        if (o_opt) output_mTMalign_pymol(chain_list,
+            infmt_opt, ut_mat, fname_super, o_opt);
         
         DeleteArray(&ut_mat,chain_num);
     }
@@ -2989,7 +3001,7 @@ int main(int argc, char *argv[])
     bool v_opt = false; // print version
     bool m_opt = false; // flag for -m, output rotation matrix
     int  i_opt = 0;     // 1 for -i, 3 for -I
-    int  o_opt = 0;     // 1 for -o, 2 for -rasmol
+    int  o_opt = 0;     // 1 for -o, 2 for -rasmol, 3 for -chimerax
     int  a_opt = 0;     // flag for -a, do not normalized by average length
     bool u_opt = false; // flag for -u, normalized by user specified length
     bool d_opt = false; // flag for -d, user specified d0
@@ -3000,8 +3012,8 @@ int main(int argc, char *argv[])
     bool   se_opt    =false;
     int    infmt1_opt=-1;    // PDB or PDBx/mmCIF format for chain_1
     int    infmt2_opt=-1;    // PDB or PDBx/mmCIF format for chain_2
-    int    ter_opt   =2;     // END, or different chainID
-    int    split_opt =2;     // split each chains
+    int    ter_opt   =-1;    // default change to 2 (END, or different chainID)
+    int    split_opt =-1;    // default change to 2 (split each chains)
     int    outfmt_opt=0;     // set -outfmt to full output
     bool   fast_opt  =false; // flags for -fast, fTM-align algorithm
     int    cp_opt    =0;     // do not check circular permutation
@@ -3036,6 +3048,8 @@ int main(int argc, char *argv[])
                 PrintErrorAndQuit("ERROR! Missing value for -o");
             if (o_opt==2)
                 cerr<<"Warning! -rasmol is already set. Ignore -o"<<endl;
+            else if (o_opt==3)
+                cerr<<"Warning! -chimerax is already set. Ignore -o"<<endl;
             else
             {
                 fname_super = argv[i + 1];
@@ -3049,10 +3063,27 @@ int main(int argc, char *argv[])
                 PrintErrorAndQuit("ERROR! Missing value for -rasmol");
             if (o_opt==1)
                 cerr<<"Warning! -o is already set. Ignore -rasmol"<<endl;
+            else if (o_opt==3)
+                cerr<<"Warning! -chimerax is already set. Ignore -rasmol"<<endl;
             else
             {
                 fname_super = argv[i + 1];
                 o_opt = 2;
+            }
+            i++;
+        }
+        else if ( !strcmp(argv[i],"-chimerax") )
+        {
+            if (i>=(argc-1)) 
+                PrintErrorAndQuit("ERROR! Missing value for -chimerax");
+            if (o_opt==1)
+                cerr<<"Warning! -o is already set. Ignore -chimerax"<<endl;
+            else if (o_opt==2)
+                cerr<<"Warning! -rasmol is already set. Ignore -chimerax"<<endl;
+            else
+            {
+                fname_super = argv[i + 1];
+                o_opt = 3;
             }
             i++;
         }
@@ -3371,17 +3402,20 @@ int main(int argc, char *argv[])
     if (byresi_opt!=0)
     {
         if (i_opt)
-            PrintErrorAndQuit("-byresi >=1 cannot be used with -i or -I");
+            PrintErrorAndQuit("-TMscore >=1 cannot be used with -i or -I");
         if (byresi_opt<0 || byresi_opt>7)
-            PrintErrorAndQuit("-byresi can only be 0 to 7");
+            PrintErrorAndQuit("-TMscore can only be 0 to 7");
         if ((byresi_opt==2 || byresi_opt==3 || byresi_opt==6) && ter_opt>=2)
-            PrintErrorAndQuit("-byresi 2 and 6 must be used with -ter <=1");
+            PrintErrorAndQuit("-TMscore 2 and 6 must be used with -ter <=1");
     }
     //if (split_opt==1 && ter_opt!=0)
         //PrintErrorAndQuit("-split 1 should be used with -ter 0");
     //else if (split_opt==2 && ter_opt!=0 && ter_opt!=1)
         //PrintErrorAndQuit("-split 2 should be used with -ter 0 or 1");
-    if (split_opt<0 || split_opt>2)
+    if (split_opt<0)
+        if (byresi_opt==2 || byresi_opt==3) split_opt=0;
+        else split_opt=2;
+    else if (split_opt>2)
         PrintErrorAndQuit("-split can only be 0, 1 or 2");
 
     if (mm_opt==3)
@@ -3395,6 +3429,13 @@ int main(int argc, char *argv[])
     if (mirror_opt && het_opt!=1)
         cerr<<"WARNING! -mirror was not used with -het 1. "
             <<"D amino acids may not be correctly aligned."<<endl;
+
+    if (ter_opt<0)
+    {
+        if (mm_opt==1 || mm_opt==2 || byresi_opt==2 || byresi_opt==3 || 
+            byresi_opt==6 || byresi_opt==7) ter_opt=1;
+        else ter_opt=2;
+    }
 
     if (mm_opt)
     {
